@@ -12,6 +12,7 @@ on:
 
 permissions:
   contents: write
+  issues: write
 
 jobs:
   build-and-publish:
@@ -47,8 +48,27 @@ jobs:
         run: |
           set -euo pipefail
           git clone --depth 1 --branch "$UPSTREAM_TAG" https://github.com/SnosMe/awakened-poe-trade.git upstream
+
+      - name: Apply the Linux chat-paste patch
+        id: apply_patch
+        if: steps.release.outputs.already_published == 'false'
+        run: |
+          set -euo pipefail
           git -C upstream apply --check "$GITHUB_WORKSPACE/.github/patches/linux-chat-paste-race.patch"
           git -C upstream apply "$GITHUB_WORKSPACE/.github/patches/linux-chat-paste-race.patch"
+
+      - name: Open an issue when the patch no longer applies
+        if: failure() && steps.apply_patch.outcome == 'failure'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          UPSTREAM_TAG: ${{ steps.release.outputs.upstream_tag }}
+        run: |
+          set -euo pipefail
+          title="Patched release blocked: $UPSTREAM_TAG"
+          existing="$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --search "$title in:title" --json number --jq '.[0].number // empty')"
+          if [ -z "$existing" ]; then
+            gh issue create --repo "$GITHUB_REPOSITORY" --assignee tinycrops --title "$title" --body "The Linux chat-paste patch no longer applies cleanly to upstream release $UPSTREAM_TAG. The prior patched release remains active; update the patch before publishing this release. Workflow: https://github.com/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+          fi
 
       - name: Build patched AppImage
         if: steps.release.outputs.already_published == 'false'
