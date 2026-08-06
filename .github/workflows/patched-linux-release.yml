@@ -1,0 +1,78 @@
+name: Publish patched Linux release
+
+on:
+  schedule:
+    - cron: '23 */6 * * *'
+  workflow_dispatch:
+    inputs:
+      upstream_tag:
+        description: 'Upstream release tag to build (for example v3.29.104). Leave blank for latest.'
+        required: false
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-publish:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Check out the patch channel
+        uses: actions/checkout@v6
+
+      - name: Resolve an unprocessed upstream release
+        id: release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REQUESTED_TAG: ${{ inputs.upstream_tag }}
+        run: |
+          set -euo pipefail
+          upstream_tag="${REQUESTED_TAG:-}"
+          if [ -z "$upstream_tag" ]; then
+            upstream_tag="$(gh api repos/SnosMe/awakened-poe-trade/releases/latest --jq .tag_name)"
+          fi
+          patched_tag="patched-${upstream_tag}"
+          echo "upstream_tag=$upstream_tag" >> "$GITHUB_OUTPUT"
+          echo "patched_tag=$patched_tag" >> "$GITHUB_OUTPUT"
+          if gh release view "$patched_tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "already_published=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "already_published=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Fetch upstream source
+        if: steps.release.outputs.already_published == 'false'
+        env:
+          UPSTREAM_TAG: ${{ steps.release.outputs.upstream_tag }}
+        run: |
+          set -euo pipefail
+          git clone --depth 1 --branch "$UPSTREAM_TAG" https://github.com/SnosMe/awakened-poe-trade.git upstream
+          git -C upstream apply --check "$GITHUB_WORKSPACE/.github/patches/linux-chat-paste-race.patch"
+          git -C upstream apply "$GITHUB_WORKSPACE/.github/patches/linux-chat-paste-race.patch"
+
+      - name: Build patched AppImage
+        if: steps.release.outputs.already_published == 'false'
+        working-directory: upstream
+        run: |
+          set -euo pipefail
+          npm ci --prefix renderer
+          npm run make-index-files --prefix renderer
+          npm run build --prefix renderer
+          npm ci --prefix main
+          npm run build --prefix main
+          npm run package --prefix main -- --publish never
+
+      - name: Publish patched updater feed
+        if: steps.release.outputs.already_published == 'false'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          UPSTREAM_TAG: ${{ steps.release.outputs.upstream_tag }}
+          PATCHED_TAG: ${{ steps.release.outputs.patched_tag }}
+        run: |
+          set -euo pipefail
+          gh release create "$PATCHED_TAG" \
+            upstream/main/dist/*.AppImage \
+            upstream/main/dist/latest-linux.yml \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "Patched $UPSTREAM_TAG" \
+            --notes "Automated Linux AppImage build of $UPSTREAM_TAG with the Linux chat-paste race fix."
