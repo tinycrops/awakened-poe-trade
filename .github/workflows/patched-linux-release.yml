@@ -62,6 +62,19 @@ jobs:
           npm run build --prefix main
           npm run package --prefix main -- --publish never
 
+      - name: Match the release asset to the updater manifest
+        if: steps.release.outputs.already_published == 'false'
+        run: |
+          set -euo pipefail
+          manifest=upstream/main/dist/latest-linux.yml
+          expected_name="$(sed -n 's/^path: //p' "$manifest")"
+          app_image="$(find upstream/main/dist -maxdepth 1 -type f -name '*.AppImage' -print -quit)"
+          test -n "$expected_name"
+          test -n "$app_image"
+          if [ "$(basename "$app_image")" != "$expected_name" ]; then
+            mv "$app_image" "$(dirname "$app_image")/$expected_name"
+          fi
+
       - name: Publish patched updater feed
         if: steps.release.outputs.already_published == 'false'
         env:
