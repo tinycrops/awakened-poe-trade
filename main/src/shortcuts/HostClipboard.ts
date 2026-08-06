@@ -8,7 +8,7 @@ const POLL_LIMIT = 500
 // after that we restore clipboard.
 // If game lagged for some reason, it will read
 // wrong content (= restored clipboard, potentially containing password).
-const RESTORE_AFTER = 120
+const RESTORE_AFTER = process.platform === 'linux' ? 250 : 120
 
 export class HostClipboard {
   private pollPromise?: Promise<string>

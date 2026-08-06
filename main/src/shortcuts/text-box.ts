@@ -13,9 +13,27 @@ const AUTO_CLEAR = [
   '/' // Command
 ]
 
+// Opening chat is asynchronous in PoE under Wine/Proton and takes longer while
+// another in-game panel has focus. Let the chat edit control become active
+// before sending Ctrl+V.
+const LINUX_CHAT_FOCUS_DELAY = 150
+
 export function typeInChat (text: string, send: boolean, clipboard: HostClipboard) {
   clipboard.restoreShortly((clipboard) => {
     const modifiers = process.platform === 'darwin' ? [Key.Meta] : [Key.Ctrl]
+
+    const pasteAndSend = () => {
+      uIOhook.keyTap(Key.V, modifiers)
+
+      if (send) {
+        uIOhook.keyTap(Key.Enter)
+        // restore the last chat
+        uIOhook.keyTap(Key.Enter)
+        uIOhook.keyTap(Key.ArrowUp)
+        uIOhook.keyTap(Key.ArrowUp)
+        uIOhook.keyTap(Key.Escape)
+      }
+    }
 
     if (text.startsWith(PLACEHOLDER_LAST)) {
       text = text.slice(`${PLACEHOLDER_LAST} `.length)
@@ -32,21 +50,21 @@ export function typeInChat (text: string, send: boolean, clipboard: HostClipboar
     } else {
       clipboard.writeText(text)
       uIOhook.keyTap(Key.Enter)
+      if (process.platform === 'linux') {
+        setTimeout(() => {
+          if (!AUTO_CLEAR.includes(text[0])) {
+            uIOhook.keyTap(Key.A, modifiers)
+          }
+          pasteAndSend()
+        }, LINUX_CHAT_FOCUS_DELAY)
+        return
+      }
       if (!AUTO_CLEAR.includes(text[0])) {
         uIOhook.keyTap(Key.A, modifiers)
       }
     }
 
-    uIOhook.keyTap(Key.V, modifiers)
-
-    if (send) {
-      uIOhook.keyTap(Key.Enter)
-      // restore the last chat
-      uIOhook.keyTap(Key.Enter)
-      uIOhook.keyTap(Key.ArrowUp)
-      uIOhook.keyTap(Key.ArrowUp)
-      uIOhook.keyTap(Key.Escape)
-    }
+    pasteAndSend()
   })
 }
 
