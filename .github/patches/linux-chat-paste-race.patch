@@ -1,0 +1,91 @@
+diff --git a/main/electron-builder.yml b/main/electron-builder.yml
+index 577a0ce..0d3b42d 100644
+--- a/main/electron-builder.yml
++++ b/main/electron-builder.yml
+@@ -1,5 +1,7 @@
+ publish:
+-  - "github"
++  - provider: "github"
++    owner: "tinycrops"
++    repo: "awakened-poe-trade"
+ productName: "Awakened PoE Trade"
+ npmRebuild: false
+ toolsets:
+diff --git a/main/src/shortcuts/HostClipboard.ts b/main/src/shortcuts/HostClipboard.ts
+index 552754e..5bf1d95 100644
+--- a/main/src/shortcuts/HostClipboard.ts
++++ b/main/src/shortcuts/HostClipboard.ts
+@@ -8,7 +8,7 @@ const POLL_LIMIT = 500
+ // after that we restore clipboard.
+ // If game lagged for some reason, it will read
+ // wrong content (= restored clipboard, potentially containing password).
+-const RESTORE_AFTER = 120
++const RESTORE_AFTER = process.platform === 'linux' ? 250 : 120
+ 
+ export class HostClipboard {
+   private pollPromise?: Promise<string>
+diff --git a/main/src/shortcuts/text-box.ts b/main/src/shortcuts/text-box.ts
+index 88e8b1b..89216df 100644
+--- a/main/src/shortcuts/text-box.ts
++++ b/main/src/shortcuts/text-box.ts
+@@ -13,10 +13,28 @@ const AUTO_CLEAR = [
+   '/' // Command
+ ]
+ 
++// Opening chat is asynchronous in PoE under Wine/Proton and takes longer while
++// another in-game panel has focus. Let the chat edit control become active
++// before sending Ctrl+V.
++const LINUX_CHAT_FOCUS_DELAY = 150
++
+ export function typeInChat (text: string, send: boolean, clipboard: HostClipboard) {
+   clipboard.restoreShortly((clipboard) => {
+     const modifiers = process.platform === 'darwin' ? [Key.Meta] : [Key.Ctrl]
+ 
++    const pasteAndSend = () => {
++      uIOhook.keyTap(Key.V, modifiers)
++
++      if (send) {
++        uIOhook.keyTap(Key.Enter)
++        // restore the last chat
++        uIOhook.keyTap(Key.Enter)
++        uIOhook.keyTap(Key.ArrowUp)
++        uIOhook.keyTap(Key.ArrowUp)
++        uIOhook.keyTap(Key.Escape)
++      }
++    }
++
+     if (text.startsWith(PLACEHOLDER_LAST)) {
+       text = text.slice(`${PLACEHOLDER_LAST} `.length)
+       clipboard.writeText(text)
+@@ -32,21 +50,21 @@ export function typeInChat (text: string, send: boolean, clipboard: HostClipboar
+     } else {
+       clipboard.writeText(text)
+       uIOhook.keyTap(Key.Enter)
++      if (process.platform === 'linux') {
++        setTimeout(() => {
++          if (!AUTO_CLEAR.includes(text[0])) {
++            uIOhook.keyTap(Key.A, modifiers)
++          }
++          pasteAndSend()
++        }, LINUX_CHAT_FOCUS_DELAY)
++        return
++      }
+       if (!AUTO_CLEAR.includes(text[0])) {
+         uIOhook.keyTap(Key.A, modifiers)
+       }
+     }
+ 
+-    uIOhook.keyTap(Key.V, modifiers)
+-
+-    if (send) {
+-      uIOhook.keyTap(Key.Enter)
+-      // restore the last chat
+-      uIOhook.keyTap(Key.Enter)
+-      uIOhook.keyTap(Key.ArrowUp)
+-      uIOhook.keyTap(Key.ArrowUp)
+-      uIOhook.keyTap(Key.Escape)
+-    }
++    pasteAndSend()
+   })
+ }
+ 
