@@ -164,12 +164,6 @@ const PSEUDO_RULES: PseudoRule[] = [
     ]
   },
   {
-    pseudo: stat('#% total increased Physical Damage'),
-    stats: [
-      { ref: stat('#% increased Global Physical Damage') }
-    ]
-  },
-  {
     pseudo: stat('+#% Global Critical Strike Chance'),
     group: 'global_crit_chance',
     stats: [
