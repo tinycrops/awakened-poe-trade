@@ -118,7 +118,9 @@ export default {
   VEILED_MODS: ['Chosen', 'of the Order'],
   INCURSION_MODS: ["Guatelitzi's", "Xopec's", "Topotante's", "Tacati's", "Matatl's", 'of Matatl', "Citaqualotl's", 'of Citaqualotl', 'of Tacati', 'of Guatelitzi', 'of Puhuarte'],
   ESSENCE_MODS: ['of the Essence', 'Essences'],
-  INFAMOUS_MODS: ['of Infamy', 'Infamous'],
+  // 'of Infamy' dropped: collides with the pre-existing LocalIncreasedAttackSpeed7
+  // suffix flavor name, so it false-positived ordinary attack speed mods as Infamous
+  INFAMOUS_MODS: ['Infamous'],
   FOIL_UNIQUE: 'Foil Unique',
   UNMODIFIABLE: 'Unmodifiable',
   FOULBORN_NAME: /^Foulborn (.*)$/,
