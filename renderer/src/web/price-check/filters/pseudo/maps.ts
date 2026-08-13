@@ -54,7 +54,10 @@ function areaProps (
 
 export function mapProps (bulk: boolean, ctx: FiltersCreationContext): void {
   const { item } = ctx
-  if (item.category !== ItemCategory.Map || item.mapCompletionReward || item.rarity === ItemRarity.Unique) return
+  if (item.category !== ItemCategory.Map || item.mapBlighted || item.mapCompletionReward || item.rarity === ItemRarity.Unique) return
+
+  const hasMoreDrops = Boolean(item.mapMoreMaps || item.mapMoreScarabs || item.mapMoreCurrency || item.mapMoreDivCards)
+  if (!item.isCorrupted && !hasMoreDrops && item.info.refName !== 'Nightmare Map') return
 
   if (!bulk) {
     const hasValuableDrops = Boolean(item.mapMoreScarabs || item.mapMoreCurrency || item.mapMoreDivCards)
@@ -98,7 +101,7 @@ export function mapProps (bulk: boolean, ctx: FiltersCreationContext): void {
   }
 
   const explicitMods = item.newMods.filter(mod => mod.info.generation === 'prefix' || mod.info.generation === 'suffix')
-  if (explicitMods.length === 8) {
+  if (explicitMods.length === 8 && !hasMoreDrops) {
     ctx.filters.push(noSourcePseudoToFilter({
       pseudo: pseudoStatByRef(PSEUDO.EXPLICIT_MODIFIERS)!,
       roll: { min: 0, max: 8, value: explicitMods.length },
