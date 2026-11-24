@@ -1,5 +1,5 @@
 diff --git a/main/electron-builder.yml b/main/electron-builder.yml
-index 577a0ce..0d3b42d 100644
+index a8a4950..598df33 100644
 --- a/main/electron-builder.yml
 +++ b/main/electron-builder.yml
 @@ -1,5 +1,7 @@
@@ -25,10 +25,10 @@ index 552754e..5bf1d95 100644
  export class HostClipboard {
    private pollPromise?: Promise<string>
 diff --git a/main/src/shortcuts/text-box.ts b/main/src/shortcuts/text-box.ts
-index 88e8b1b..89216df 100644
+index 88e8b1b..9d58c71 100644
 --- a/main/src/shortcuts/text-box.ts
 +++ b/main/src/shortcuts/text-box.ts
-@@ -13,10 +13,28 @@ const AUTO_CLEAR = [
+@@ -13,10 +13,35 @@ const AUTO_CLEAR = [
    '/' // Command
  ]
  
@@ -46,6 +46,13 @@ index 88e8b1b..89216df 100644
 +
 +      if (send) {
 +        uIOhook.keyTap(Key.Enter)
++        // A slash command can trigger a zone change (/boat, /menagerie, /hideout,
++        // /exit). The chat-restore sequence below fires microseconds after the
++        // send, so it races the loading screen: the reopen lands, ArrowUp pulls
++        // the just-sent command back out of chat history, and the closing Escape
++        // gets swallowed -- leaving the command re-typed in an open chat box on
++        // arrival. Commands have no half-typed message worth restoring anyway.
++        if (text.startsWith('/')) return
 +        // restore the last chat
 +        uIOhook.keyTap(Key.Enter)
 +        uIOhook.keyTap(Key.ArrowUp)
@@ -57,7 +64,7 @@ index 88e8b1b..89216df 100644
      if (text.startsWith(PLACEHOLDER_LAST)) {
        text = text.slice(`${PLACEHOLDER_LAST} `.length)
        clipboard.writeText(text)
-@@ -32,21 +50,21 @@ export function typeInChat (text: string, send: boolean, clipboard: HostClipboar
+@@ -32,21 +57,21 @@ export function typeInChat (text: string, send: boolean, clipboard: HostClipboar
      } else {
        clipboard.writeText(text)
        uIOhook.keyTap(Key.Enter)

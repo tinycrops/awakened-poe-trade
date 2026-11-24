@@ -76,7 +76,6 @@ jobs:
         run: |
           set -euo pipefail
           npm ci --prefix renderer
-          npm run make-index-files --prefix renderer
           npm run build --prefix renderer
           npm ci --prefix main
           npm run build --prefix main
