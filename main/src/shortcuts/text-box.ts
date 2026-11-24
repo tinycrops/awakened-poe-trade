@@ -27,6 +27,13 @@ export function typeInChat (text: string, send: boolean, clipboard: HostClipboar
 
       if (send) {
         uIOhook.keyTap(Key.Enter)
+        // A slash command can trigger a zone change (/boat, /menagerie, /hideout,
+        // /exit). The chat-restore sequence below fires microseconds after the
+        // send, so it races the loading screen: the reopen lands, ArrowUp pulls
+        // the just-sent command back out of chat history, and the closing Escape
+        // gets swallowed -- leaving the command re-typed in an open chat box on
+        // arrival. Commands have no half-typed message worth restoring anyway.
+        if (text.startsWith('/')) return
         // restore the last chat
         uIOhook.keyTap(Key.Enter)
         uIOhook.keyTap(Key.ArrowUp)
